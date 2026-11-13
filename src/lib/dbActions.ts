@@ -1,18 +1,24 @@
+
 'use server';
 
 import { Condition } from '@prisma/client';
-import { Stuff } from '@prisma/client';
+import type { Stuff } from '@prisma/client';
 import { hash } from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { prisma } from './prisma';
+import { auth } from './auth';
 
 /**
- * Adds a new stuff to the database.
- * @param stuff, an object with the following properties: name, quantity, owner, condition.
+ * Adds a new stuff item to the database.
  */
-export async function addStuff(stuff: { name: string; quantity: number; owner: string; condition: string }) {
-  // console.log(`addStuff data: ${JSON.stringify(stuff, null, 2)}`);
+export async function addStuff(stuff: {
+  name: string;
+  quantity: number;
+  owner: string;
+  condition: string;
+}) {
   let condition: Condition = 'good';
+
   if (stuff.condition === 'poor') {
     condition = 'poor';
   } else if (stuff.condition === 'excellent') {
@@ -20,6 +26,7 @@ export async function addStuff(stuff: { name: string; quantity: number; owner: s
   } else {
     condition = 'fair';
   }
+
   await prisma.stuff.create({
     data: {
       name: stuff.name,
@@ -28,16 +35,14 @@ export async function addStuff(stuff: { name: string; quantity: number; owner: s
       condition,
     },
   });
-  // After adding, redirect to the list page
+
   redirect('/list');
 }
 
 /**
- * Edits an existing stuff in the database.
- * @param stuff, an object with the following properties: id, name, quantity, owner, condition.
+ * Edits an existing stuff item.
  */
 export async function editStuff(stuff: Stuff) {
-  // console.log(`editStuff data: ${JSON.stringify(stuff, null, 2)}`);
   await prisma.stuff.update({
     where: { id: stuff.id },
     data: {
@@ -47,30 +52,30 @@ export async function editStuff(stuff: Stuff) {
       condition: stuff.condition,
     },
   });
-  // After updating, redirect to the list page
+
   redirect('/list');
 }
 
 /**
- * Deletes an existing stuff from the database.
- * @param id, the id of the stuff to delete.
+ * Deletes an existing stuff item.
  */
 export async function deleteStuff(id: number) {
-  // console.log(`deleteStuff id: ${id}`);
   await prisma.stuff.delete({
     where: { id },
   });
-  // After deleting, redirect to the list page
+
   redirect('/list');
 }
 
 /**
- * Creates a new user in the database.
- * @param credentials, an object with the following properties: email, password.
+ * Creates a new user.
  */
-export async function createUser(credentials: { email: string; password: string }) {
-  // console.log(`createUser data: ${JSON.stringify(credentials, null, 2)}`);
+export async function createUser(credentials: {
+  email: string;
+  password: string;
+}) {
   const password = await hash(credentials.password, 10);
+
   await prisma.user.create({
     data: {
       email: credentials.email,
@@ -80,16 +85,86 @@ export async function createUser(credentials: { email: string; password: string 
 }
 
 /**
- * Changes the password of an existing user in the database.
- * @param credentials, an object with the following properties: email, password.
+ * Changes a user's password.
  */
-export async function changePassword(credentials: { email: string; password: string }) {
-  // console.log(`changePassword data: ${JSON.stringify(credentials, null, 2)}`);
+export async function changePassword(credentials: {
+  email: string;
+  password: string;
+}) {
   const password = await hash(credentials.password, 10);
+
   await prisma.user.update({
     where: { email: credentials.email },
     data: {
       password,
     },
   });
+}
+
+/**
+ * Adds a new contact to the database.
+ */
+export async function addContact(contact: {
+  firstName: string;
+  lastName: string;
+  address: string;
+  image: string;
+  description: string;
+}) {
+  const session = await auth();
+
+  if (!session?.user?.email) {
+    throw new Error('You must be logged in to add a contact.');
+  }
+
+  await prisma.contact.create({
+    data: {
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      address: contact.address,
+      image: contact.image,
+      description: contact.description,
+      owner: session.user.email,
+    },
+  });
+
+  redirect('/list');
+}
+
+/**
+ * Edits an existing contact in the database.
+ */
+export async function editContact(contact: {
+  id: number;
+  firstName: string;
+  lastName: string;
+  address: string;
+  image: string;
+  description: string;
+}) {
+  const session = await auth();
+
+  if (!session?.user?.email) {
+    throw new Error('You must be logged in to edit a contact.');
+  }
+
+  const result = await prisma.contact.updateMany({
+    where: {
+      id: contact.id,
+      owner: session.user.email,
+    },
+    data: {
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      address: contact.address,
+      image: contact.image,
+      description: contact.description,
+    },
+  });
+
+  if (result.count === 0) {
+    throw new Error('Contact not found or access denied.');
+  }
+
+  redirect('/list');
 }
