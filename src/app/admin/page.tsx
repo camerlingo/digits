@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { adminProtectedPage } from '@/lib/page-protection';
 import { auth } from '@/lib/auth';
 
-/** Render all contacts for administrators. */
+/** Render all contacts and their notes for administrators. */
 const AdminPage = async () => {
   // Protect the page so only admins can access it.
   const session = await auth();
@@ -16,8 +16,16 @@ const AdminPage = async () => {
     } | null,
   );
 
-  // Retrieve all contacts from the database.
-  const contacts = await prisma.contact.findMany({});
+  // Retrieve all contacts and their associated notes.
+  const contacts = await prisma.contact.findMany({
+    include: {
+      notes: {
+        orderBy: {
+          createdAt: 'asc',
+        },
+      },
+    },
+  });
 
   return (
     <main>
@@ -33,7 +41,10 @@ const AdminPage = async () => {
         <Row xs={1} md={2} lg={3} className="g-4">
           {contacts.map((contact) => (
             <Col key={`Contact-${contact.id}`}>
-              <ContactCardAdmin contact={contact} />
+              <ContactCardAdmin
+                contact={contact}
+                notes={contact.notes}
+              />
             </Col>
           ))}
         </Row>

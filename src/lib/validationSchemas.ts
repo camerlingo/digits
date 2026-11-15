@@ -52,3 +52,13 @@ export type AddContactFormValues = Yup.InferType<
 export type EditContactFormValues = Yup.InferType<
   typeof EditContactSchema
 >;
+
+
+export const AddNoteSchema = Yup.object({
+  note: Yup.string().required('Note is required'),
+  contactId: Yup.number().required(),
+});
+
+export type AddNoteFormValues = Yup.InferType<
+  typeof AddNoteSchema
+>;
