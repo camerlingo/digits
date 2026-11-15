@@ -168,3 +168,38 @@ export async function editContact(contact: {
 
   redirect('/list');
 }
+
+export async function addNote(data: {
+  note: string;
+  contactId: number;
+}) {
+  const session = await auth();
+
+  // Make sure the user is logged in.
+  if (!session?.user?.email) {
+    throw new Error('You must be logged in to add a note.');
+  }
+
+  // Make sure the contact belongs to this user.
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: data.contactId,
+      owner: session.user.email,
+    },
+  });
+
+  if (!contact) {
+    throw new Error('Contact not found or access denied.');
+  }
+
+  // Create the note in PostgreSQL.
+  await prisma.note.create({
+    data: {
+      note: data.note,
+      contactId: data.contactId,
+      owner: session.user.email,
+    },
+  });
+
+  redirect('/list');
+}
